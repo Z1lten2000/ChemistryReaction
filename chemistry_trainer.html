@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHEM//CORE — Типы химических реакций</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #050a14;
+    --bg-mid: #0d1a2e;
+    --bg-card: #0a1525;
+    --cyan: #00e5ff;
+    --pink: #ff3d71;
+    --lime: #a8ff3e;
+    --text: #c8e6f5;
+    --text-dim: #4a7a99;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg-deep); color: var(--text); font-family: 'Share Tech Mono', monospace; min-height: 100vh; overflow-x: hidden; cursor: none; }
+
+  #cursor-dot { position: fixed; pointer-events: none; z-index: 9999; width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan), 0 0 20px var(--cyan); transform: translate(-50%,-50%); }
+  #cursor-ring { position: fixed; pointer-events: none; z-index: 9998; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--cyan); transform: translate(-50%,-50%); transition: left .12s ease, top .12s ease; opacity: .7; }
+
+  #bg-canvas { position: fixed; top:0; left:0; z-index:0; pointer-events:none; }
+  .grid-bg { position: fixed; top:0; left:0; width:100%; height:100%; z-index:1; pointer-events:none; background-image: linear-gradient(rgba(0,229,255,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,.04) 1px, transparent 1px); background-size: 50px 50px; }
+  .scanlines { position: fixed; top:0; left:0; width:100%; height:100%; z-index:2; pointer-events:none; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.08) 2px, rgba(0,0,0,.08) 4px); }
+  .atom-blob { position:fixed; border-radius:50%; pointer-events:none; z-index:1; filter:blur(80px); opacity:.07; animation: float-blob 15s ease-in-out infinite; }
+  .ab1 { width:400px; height:400px; background:var(--cyan); top:-100px; left:-100px; animation-duration:15s; }
+  .ab2 { width:300px; height:300px; background:var(--pink); bottom:-80px; right:-80px; animation-duration:18s; animation-delay:-6s; }
+  .ab3 { width:250px; height:250px; background:var(--lime); top:40%; left:60%; animation-duration:20s; animation-delay:-10s; }
+  @keyframes float-blob { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(30px,-20px) scale(1.1)} 66%{transform:translate(-20px,15px) scale(.95)} }
+
+  #app { position:relative; z-index:10; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:20px 16px 40px; }
+
+  header { width:100%; max-width:760px; text-align:center; margin-bottom:24px; animation: slide-down .8s cubic-bezier(.16,1,.3,1) both; }
+  @keyframes slide-down { from{opacity:0;transform:translateY(-30px)} to{opacity:1;transform:translateY(0)} }
+  .logo { font-family:'Orbitron',sans-serif; font-size:clamp(22px,5vw,36px); font-weight:900; letter-spacing:4px; background:linear-gradient(135deg,var(--cyan) 0%,var(--lime) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; filter:drop-shadow(0 0 20px rgba(0,229,255,.5)); }
+  .logo-sub { font-size:11px; letter-spacing:6px; color:var(--text-dim); margin-top:4px; }
+
+  .stats-bar { width:100%; max-width:760px; display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap; animation: slide-down .8s .1s cubic-bezier(.16,1,.3,1) both; }
+  .stat-chip { background:var(--bg-mid); border:1px solid rgba(0,229,255,.2); border-radius:4px; padding:8px 16px; font-family:'Orbitron',sans-serif; font-size:11px; display:flex; align-items:center; gap:8px; white-space:nowrap; }
+  .stat-label { color:var(--text-dim); }
+  .stat-val { color:var(--cyan); font-weight:700; }
+  .stat-val.pink { color:var(--pink); }
+  .stat-val.lime { color:var(--lime); }
+
+  .progress-wrap { width:100%; max-width:760px; margin-bottom:20px; animation: slide-down .8s .15s cubic-bezier(.16,1,.3,1) both; }
+  .progress-label { font-size:10px; color:var(--text-dim); letter-spacing:3px; margin-bottom:6px; display:flex; justify-content:space-between; }
+  .progress-track { height:4px; background:rgba(255,255,255,.06); border-radius:2px; overflow:hidden; }
+  .progress-fill { height:100%; background:linear-gradient(90deg,var(--cyan),var(--lime)); border-radius:2px; width:0%; transition:width .6s cubic-bezier(.16,1,.3,1); box-shadow:0 0 10px var(--cyan); }
+
+  .toolbar { width:100%; max-width:760px; display:flex; justify-content:flex-end; margin-bottom:12px; animation: slide-down .8s .2s cubic-bezier(.16,1,.3,1) both; }
+  .btn-ref { font-family:'Share Tech Mono',monospace; font-size:12px; background:transparent; border:1px solid rgba(168,255,62,.4); color:var(--lime); padding:7px 16px; border-radius:3px; cursor:none; letter-spacing:2px; transition:all .2s; }
+  .btn-ref:hover { background:rgba(168,255,62,.1); box-shadow:0 0 15px rgba(168,255,62,.3); }
+
+  .ref-panel { width:100%; max-width:760px; background:var(--bg-mid); border:1px solid rgba(168,255,62,.3); border-radius:8px; padding:20px 24px; margin-bottom:16px; display:none; }
+  .ref-panel.open { display:block; animation:fade-in .3s ease; }
+  .ref-panel h3 { font-family:'Orbitron',sans-serif; font-size:12px; letter-spacing:4px; color:var(--lime); margin-bottom:14px; }
+  .ref-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .ref-item { background:rgba(168,255,62,.05); border:1px solid rgba(168,255,62,.15); border-radius:6px; padding:12px; }
+  .ref-type { font-size:11px; color:var(--lime); letter-spacing:2px; margin-bottom:6px; }
+  .ref-scheme { font-size:12px; color:var(--text); line-height:1.7; }
+
+  .card { width:100%; max-width:760px; background:var(--bg-card); border:1px solid rgba(0,229,255,.2); border-radius:10px; padding:28px 28px 24px; position:relative; overflow:hidden; animation:card-appear .5s cubic-bezier(.16,1,.3,1) both; transition:border-color .3s, box-shadow .3s; }
+  @keyframes card-appear { from{opacity:0;transform:translateY(20px) scale(.98)} to{opacity:1;transform:translateY(0) scale(1)} }
+  .card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--cyan),transparent); }
+  .card.correct { border-color:var(--lime); box-shadow:0 0 30px rgba(168,255,62,.2); }
+  .card.correct::before { background:linear-gradient(90deg,transparent,var(--lime),transparent); }
+  .card.wrong { border-color:var(--pink); box-shadow:0 0 30px rgba(255,61,113,.2); }
+  .card.wrong::before { background:linear-gradient(90deg,transparent,var(--pink),transparent); }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 15%{transform:translateX(-8px)} 30%{transform:translateX(8px)} 45%{transform:translateX(-6px)} 60%{transform:translateX(6px)} 75%{transform:translateX(-3px)} 90%{transform:translateX(3px)} }
+  .card.shaking { animation:shake .5s ease; }
+  @keyframes pulse-correct { 0%,100%{box-shadow:0 0 30px rgba(168,255,62,.2)} 50%{box-shadow:0 0 60px rgba(168,255,62,.5)} }
+  .card.pulsing { animation:pulse-correct .8s ease; }
+
+  .card-tag { font-size:10px; letter-spacing:4px; color:var(--text-dim); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .card-tag::after { content:''; flex:1; height:1px; background:rgba(0,229,255,.1); }
+  .question { font-size:clamp(14px,2.5vw,17px); line-height:1.7; color:var(--text); margin-bottom:16px; }
+  .question .reaction { color:var(--cyan); display:inline-block; text-shadow:0 0 10px rgba(0,229,255,.4); }
+  .hint-text { font-size:11px; color:var(--text-dim); line-height:1.6; background:rgba(0,229,255,.04); border-left:2px solid rgba(0,229,255,.2); padding:8px 12px; border-radius:0 4px 4px 0; margin-bottom:18px; }
+
+  .attempts-row { display:flex; gap:6px; align-items:center; margin-bottom:14px; }
+  .attempts-label { font-size:10px; color:var(--text-dim); letter-spacing:2px; margin-right:4px; }
+  .attempt-pip { width:10px; height:10px; border-radius:50%; background:var(--pink); box-shadow:0 0 8px var(--pink); transition:all .3s; }
+  .attempt-pip.used { background:rgba(255,61,113,.15); box-shadow:none; }
+
+  .input-row { display:flex; gap:10px; margin-bottom:16px; }
+  .answer-input { flex:1; background:rgba(0,229,255,.05); border:1px solid rgba(0,229,255,.25); border-radius:4px; padding:11px 16px; color:var(--cyan); font-family:'Share Tech Mono',monospace; font-size:15px; outline:none; cursor:none; transition:border-color .2s, box-shadow .2s; caret-color:var(--cyan); }
+  .answer-input:focus { border-color:var(--cyan); box-shadow:0 0 20px rgba(0,229,255,.15); }
+  .answer-input::placeholder { color:var(--text-dim); }
+
+  .btn-check { font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700; letter-spacing:2px; padding:11px 20px; background:linear-gradient(135deg,rgba(0,229,255,.15),rgba(0,229,255,.05)); border:1px solid var(--cyan); color:var(--cyan); border-radius:4px; cursor:none; white-space:nowrap; transition:all .2s; }
+  .btn-check:hover { background:rgba(0,229,255,.2); box-shadow:0 0 20px rgba(0,229,255,.3); }
+  .btn-check:disabled { opacity:.3; }
+
+  .feedback { display:none; margin-top:14px; border-radius:6px; padding:14px 16px; font-size:13px; line-height:1.7; }
+  .feedback.correct-fb { background:rgba(168,255,62,.08); border:1px solid rgba(168,255,62,.3); color:var(--lime); }
+  .feedback.wrong-fb { background:rgba(255,61,113,.08); border:1px solid rgba(255,61,113,.3); color:var(--pink); }
+  .feedback .fb-icon { font-size:16px; margin-right:6px; }
+  .feedback .explanation { color:var(--text); margin-top:8px; font-size:12px; }
+
+  .btn-next { display:none; margin-top:16px; width:100%; font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700; letter-spacing:3px; padding:13px; background:linear-gradient(135deg,rgba(168,255,62,.15),rgba(168,255,62,.05)); border:1px solid var(--lime); color:var(--lime); border-radius:4px; cursor:none; transition:all .2s; }
+  .btn-next:hover { background:rgba(168,255,62,.2); box-shadow:0 0 25px rgba(168,255,62,.3); }
+
+  #result-screen { display:none; width:100%; max-width:760px; text-align:center; }
+  .result-card { background:var(--bg-card); border:1px solid rgba(0,229,255,.2); border-radius:12px; padding:48px 32px; position:relative; overflow:hidden; animation:card-appear .6s cubic-bezier(.16,1,.3,1) both; }
+  .result-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,var(--pink),var(--cyan),var(--lime)); }
+  .result-score { font-family:'Orbitron',sans-serif; font-size:clamp(48px,12vw,88px); font-weight:900; background:linear-gradient(135deg,var(--cyan),var(--lime)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; filter:drop-shadow(0 0 30px rgba(0,229,255,.5)); line-height:1; margin-bottom:10px; }
+  .result-label { font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:5px; color:var(--text-dim); margin-bottom:24px; }
+  .result-praise { font-size:16px; color:var(--text); margin-bottom:32px; line-height:1.7; }
+  .btn-restart { font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700; letter-spacing:4px; padding:14px 40px; background:linear-gradient(135deg,rgba(0,229,255,.15),rgba(168,255,62,.15)); border:1px solid var(--cyan); color:var(--cyan); border-radius:4px; cursor:none; transition:all .2s; }
+  .btn-restart:hover { background:rgba(0,229,255,.2); box-shadow:0 0 30px rgba(0,229,255,.4); }
+  @keyframes fade-in { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  sub { font-size:.75em; vertical-align:sub; }
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="grid-bg"></div>
+<div class="scanlines"></div>
+<div class="atom-blob ab1"></div>
+<div class="atom-blob ab2"></div>
+<div class="atom-blob ab3"></div>
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+
+<div id="app">
+  <header>
+    <div class="logo">CHEM // CORE</div>
+    <div class="logo-sub">// ТИПЫ ХИМИЧЕСКИХ РЕАКЦИЙ // ТРЕНАЖЁР //</div>
+  </header>
+
+  <div class="stats-bar">
+    <div class="stat-chip"><span class="stat-label">ЗАДАНИЕ</span><span class="stat-val" id="s-num">1/100</span></div>
+    <div class="stat-chip"><span class="stat-label">ВЕРНЫХ</span><span class="stat-val lime" id="s-correct">0</span></div>
+    <div class="stat-chip"><span class="stat-label">ПОПЫТКИ</span><span class="stat-val pink" id="s-attempts">3</span></div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-label"><span>ПРОГРЕСС</span><span id="pct-label">0%</span></div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-ref" onclick="toggleRef()">[ СПРАВОЧНИК ]</button>
+  </div>
+
+  <div class="ref-panel" id="ref-panel">
+    <h3>// СХЕМЫ РЕАКЦИЙ //</h3>
+    <div class="ref-grid">
+      <div class="ref-item"><div class="ref-type">СОЕДИНЕНИЕ</div><div class="ref-scheme">A + B → AB<br>Два и более веществ → одно сложное</div></div>
+      <div class="ref-item"><div class="ref-type">РАЗЛОЖЕНИЕ</div><div class="ref-scheme">AB → A + B<br>Одно сложное → два и более</div></div>
+      <div class="ref-item"><div class="ref-type">ЗАМЕЩЕНИЕ</div><div class="ref-scheme">A + BC → AC + B<br>Простое вещество + сложное</div></div>
+      <div class="ref-item"><div class="ref-type">ОБМЕН</div><div class="ref-scheme">AB + CD → AD + CB<br>Два сложных обмениваются</div></div>
+    </div>
+  </div>
+
+  <div class="card" id="question-card">
+    <div class="card-tag" id="card-tag">ЗАДАНИЕ 001</div>
+    <div class="question" id="question-text"></div>
+    <div class="hint-text" id="hint-text"></div>
+    <div class="attempts-row">
+      <span class="attempts-label">ПОПЫТКИ</span>
+      <div class="attempt-pip" id="pip1"></div>
+      <div class="attempt-pip" id="pip2"></div>
+      <div class="attempt-pip" id="pip3"></div>
+    </div>
+    <div class="input-row">
+      <input class="answer-input" id="answer-input" type="text" placeholder="введи ответ..." autocomplete="off"/>
+      <button class="btn-check" id="btn-check" onclick="checkAnswer()">ВВОД</button>
+    </div>
+    <div class="feedback" id="feedback"></div>
+    <button class="btn-next" id="btn-next" onclick="nextQuestion()">СЛЕДУЮЩЕЕ ЗАДАНИЕ →</button>
+  </div>
+
+  <div id="result-screen">
+    <div class="result-card">
+      <div class="result-score" id="res-score">0%</div>
+      <div class="result-label">ИТОГОВЫЙ РЕЗУЛЬТАТ</div>
+      <div class="result-praise" id="res-praise"></div>
+      <button class="btn-restart" onclick="restartQuiz()">[ НАЧАТЬ СНОВА ]</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Cursor
+const dot=document.getElementById('cursor-dot'),ring=document.getElementById('cursor-ring');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;dot.style.left=mx+'px';dot.style.top=my+'px';});
+(function animR(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(animR);})();
+
+// Particles
+const canvas=document.getElementById('bg-canvas');const ctx=canvas.getContext('2d');
+let W,H;const pts=[];
+function rsz(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;}rsz();addEventListener('resize',rsz);
+for(let i=0;i<90;i++)pts.push({x:Math.random()*2000,y:Math.random()*1200,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.5+.5,a:Math.random()});
+(function draw(){ctx.clearRect(0,0,W,H);pts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,229,255,${p.a*.4})`;ctx.fill();});requestAnimationFrame(draw);})();
+
+function toggleRef(){document.getElementById('ref-panel').classList.toggle('open');}
+
+const Q=[
+  {q:'Определи тип реакции:<br><span class="reaction">2H<sub>2</sub> + O<sub>2</sub> → 2H<sub>2</sub>O</span>',hint:'Два вещества соединяются в одно.',a:['соединение'],e:'Два простых вещества (H<sub>2</sub> и O<sub>2</sub>) образуют одно сложное (H<sub>2</sub>O) — реакция <b>соединения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2H<sub>2</sub>O → 2H<sub>2</sub> + O<sub>2</sub></span>',hint:'Одно вещество распадается на несколько.',a:['разложение'],e:'Одно сложное вещество (H<sub>2</sub>O) распадается на два простых — реакция <b>разложения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Fe + CuSO<sub>4</sub> → FeSO<sub>4</sub> + Cu</span>',hint:'Простое вещество вытесняет металл из соли.',a:['замещение'],e:'Fe (простое вещество) вытесняет Cu из соли CuSO<sub>4</sub> — реакция <b>замещения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">NaOH + HCl → NaCl + H<sub>2</sub>O</span>',hint:'Два сложных вещества обмениваются ионами.',a:['обмен'],e:'NaOH и HCl обмениваются ионами — реакция <b>обмена</b> (нейтрализация).'},
+  {q:'Определи тип реакции:<br><span class="reaction">CaCO<sub>3</sub> → CaO + CO<sub>2</sub></span>',hint:'Одно вещество → несколько продуктов.',a:['разложение'],e:'CaCO<sub>3</sub> распадается на CaO и CO<sub>2</sub> — реакция <b>разложения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">N<sub>2</sub> + 3H<sub>2</sub> → 2NH<sub>3</sub></span>',hint:'Из нескольких веществ получается одно.',a:['соединение'],e:'N<sub>2</sub> и H<sub>2</sub> образуют NH<sub>3</sub> — реакция <b>соединения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Zn + H<sub>2</sub>SO<sub>4</sub> → ZnSO<sub>4</sub> + H<sub>2</sub></span>',hint:'Металл вытесняет водород из кислоты.',a:['замещение'],e:'Zn вытесняет H<sub>2</sub> из кислоты — реакция <b>замещения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">AgNO<sub>3</sub> + NaCl → AgCl↓ + NaNO<sub>3</sub></span>',hint:'Два сложных вещества обмениваются ионами.',a:['обмен'],e:'Два сложных вещества обмениваются ионами с образованием осадка AgCl — реакция <b>обмена</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">4Al + 3O<sub>2</sub> → 2Al<sub>2</sub>O<sub>3</sub></span>',hint:'Простые вещества → одно сложное.',a:['соединение'],e:'Al и O<sub>2</sub> образуют Al<sub>2</sub>O<sub>3</sub> — реакция <b>соединения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2KClO<sub>3</sub> → 2KCl + 3O<sub>2</sub></span>',hint:'Из одного вещества образуется несколько.',a:['разложение'],e:'KClO<sub>3</sub> разлагается на KCl и O<sub>2</sub> — реакция <b>разложения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2Na + 2H<sub>2</sub>O → 2NaOH + H<sub>2</sub></span>',hint:'Активный металл вытесняет водород из воды.',a:['замещение'],e:'Na вытесняет H<sub>2</sub> из H<sub>2</sub>O — реакция <b>замещения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Na<sub>2</sub>SO<sub>4</sub> + BaCl<sub>2</sub> → BaSO<sub>4</sub>↓ + 2NaCl</span>',hint:'Обмен ионами между двумя солями.',a:['обмен'],e:'Два вещества обмениваются, выпадает осадок BaSO<sub>4</sub> — реакция <b>обмена</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">SO<sub>3</sub> + H<sub>2</sub>O → H<sub>2</sub>SO<sub>4</sub></span>',hint:'Два вещества сливаются в одно.',a:['соединение'],e:'SO<sub>3</sub> и H<sub>2</sub>O образуют H<sub>2</sub>SO<sub>4</sub> — реакция <b>соединения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2HgO → 2Hg + O<sub>2</sub></span>',hint:'Одно сложное вещество распадается.',a:['разложение'],e:'HgO разлагается на Hg и O<sub>2</sub> — реакция <b>разложения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Cl<sub>2</sub> + 2KI → 2KCl + I<sub>2</sub></span>',hint:'Более активный галоген вытесняет менее активный.',a:['замещение'],e:'Cl<sub>2</sub> вытесняет I<sub>2</sub> из KI — реакция <b>замещения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">K<sub>2</sub>CO<sub>3</sub> + 2HCl → 2KCl + H<sub>2</sub>O + CO<sub>2</sub></span>',hint:'Два сложных вещества обмениваются ионами.',a:['обмен'],e:'K<sub>2</sub>CO<sub>3</sub> и HCl обмениваются ионами — реакция <b>обмена</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Cu + 2AgNO<sub>3</sub> → Cu(NO<sub>3</sub>)<sub>2</sub> + 2Ag</span>',hint:'Более активный металл вытесняет менее активный.',a:['замещение'],e:'Cu вытесняет Ag из AgNO<sub>3</sub> — реакция <b>замещения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">4Fe + 3O<sub>2</sub> → 2Fe<sub>2</sub>O<sub>3</sub></span>',hint:'Горение металла в кислороде.',a:['соединение'],e:'Fe и O<sub>2</sub> образуют Fe<sub>2</sub>O<sub>3</sub> — реакция <b>соединения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2SO<sub>2</sub> + O<sub>2</sub> → 2SO<sub>3</sub></span>',hint:'Несколько реагентов → один продукт.',a:['соединение'],e:'SO<sub>2</sub> и O<sub>2</sub> образуют SO<sub>3</sub> — реакция <b>соединения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Ca(OH)<sub>2</sub> + 2HCl → CaCl<sub>2</sub> + 2H<sub>2</sub>O</span>',hint:'Щёлочь и кислота обмениваются ионами.',a:['обмен'],e:'Ca(OH)<sub>2</sub> и HCl обмениваются — реакция <b>обмена</b>.'},
+  {q:'Допиши продукты реакции обмена:<br><span class="reaction">NaOH + HNO<sub>3</sub> →</span>',hint:'Кислота + основание → соль + вода.',a:['NaNO3 + H2O','nano3 + h2o'],e:'NaOH + HNO<sub>3</sub> → <b>NaNO<sub>3</sub> + H<sub>2</sub>O</b>. Нейтрализация.'},
+  {q:'Допиши продукты реакции замещения:<br><span class="reaction">Zn + 2HCl →</span>',hint:'Металл вытесняет водород из кислоты.',a:['ZnCl2 + H2','zncl2 + h2'],e:'Zn + 2HCl → <b>ZnCl<sub>2</sub> + H<sub>2</sub></b>. Замещение.'},
+  {q:'Допиши продукты реакции обмена:<br><span class="reaction">NaOH + HCl →</span>',hint:'Основание + кислота → соль + вода.',a:['NaCl + H2O','nacl + h2o'],e:'NaOH + HCl → <b>NaCl + H<sub>2</sub>O</b>. Нейтрализация.'},
+  {q:'Допиши продукты реакции соединения:<br><span class="reaction">CaO + H<sub>2</sub>O →</span>',hint:'Оксид металла + вода → основание.',a:['Ca(OH)2','ca(oh)2'],e:'CaO + H<sub>2</sub>O → <b>Ca(OH)<sub>2</sub></b>. Реакция соединения.'},
+  {q:'Допиши продукты реакции замещения:<br><span class="reaction">Fe + CuSO<sub>4</sub> →</span>',hint:'Железо вытесняет медь из соли.',a:['FeSO4 + Cu','feso4 + cu'],e:'Fe + CuSO<sub>4</sub> → <b>FeSO<sub>4</sub> + Cu</b>. Замещение.'},
+  {q:'Допиши продукты реакции разложения:<br><span class="reaction">2H<sub>2</sub>O<sub>2</sub> →</span>',hint:'Пероксид водорода разлагается на воду и кислород.',a:['2H2O + O2','h2o + o2'],e:'2H<sub>2</sub>O<sub>2</sub> → <b>2H<sub>2</sub>O + O<sub>2</sub></b>. Разложение перекиси.'},
+  {q:'Допиши продукты реакции замещения:<br><span class="reaction">2Al + 3H<sub>2</sub>SO<sub>4</sub> →</span>',hint:'Активный металл + кислота.',a:['Al2(SO4)3 + 3H2','al2(so4)3 + h2'],e:'2Al + 3H<sub>2</sub>SO<sub>4</sub> → <b>Al<sub>2</sub>(SO<sub>4</sub>)<sub>3</sub> + 3H<sub>2</sub></b>. Замещение.'},
+  {q:'Допиши продукты реакции соединения:<br><span class="reaction">CO<sub>2</sub> + H<sub>2</sub>O →</span>',hint:'Кислотный оксид + вода → кислота.',a:['H2CO3','h2co3'],e:'CO<sub>2</sub> + H<sub>2</sub>O → <b>H<sub>2</sub>CO<sub>3</sub></b>. Угольная кислота — соединение.'},
+  {q:'Допиши продукты реакции обмена:<br><span class="reaction">CuSO<sub>4</sub> + 2NaOH →</span>',hint:'Соль + щёлочь → осадок гидроксида + соль.',a:['Cu(OH)2 + Na2SO4','cu(oh)2 + na2so4'],e:'CuSO<sub>4</sub> + 2NaOH → <b>Cu(OH)<sub>2</sub>↓ + Na<sub>2</sub>SO<sub>4</sub></b>. Обмен.'},
+  {q:'Допиши продукты реакции обмена:<br><span class="reaction">KOH + H<sub>2</sub>SO<sub>4</sub> →</span>',hint:'Щёлочь + серная кислота.',a:['K2SO4 + H2O','k2so4 + h2o'],e:'2KOH + H<sub>2</sub>SO<sub>4</sub> → <b>K<sub>2</sub>SO<sub>4</sub> + 2H<sub>2</sub>O</b>. Нейтрализация.'},
+  {q:'Определи пропущенное вещество в реакции разложения:<br><span class="reaction">CaCO<sub>3</sub> → CaO + ?</span>',hint:'Из карбоната кальция выделяется газ.',a:['CO2','co2'],e:'CaCO<sub>3</sub> → CaO + <b>CO<sub>2</sub></b>. Разложение карбоната.'},
+  {q:'Определи пропущенное вещество в реакции соединения:<br><span class="reaction">2Mg + ? → 2MgO</span>',hint:'Металл горит в этом газе.',a:['O2','o2'],e:'2Mg + <b>O<sub>2</sub></b> → 2MgO. Горение магния.'},
+  {q:'Определи пропущенное вещество в реакции замещения:<br><span class="reaction">? + 2HCl → ZnCl<sub>2</sub> + H<sub>2</sub></span>',hint:'Какой металл вытесняет водород из соляной кислоты?',a:['Zn','zn'],e:'<b>Zn</b> + 2HCl → ZnCl<sub>2</sub> + H<sub>2</sub>. Цинк — замещение.'},
+  {q:'Определи пропущенное вещество в реакции обмена:<br><span class="reaction">NaCl + AgNO<sub>3</sub> → AgCl↓ + ?</span>',hint:'Натрий обменивает хлор на нитрат-ион.',a:['NaNO3','nano3'],e:'NaCl + AgNO<sub>3</sub> → AgCl↓ + <b>NaNO<sub>3</sub></b>. Обмен.'},
+  {q:'Определи пропущенное вещество в реакции разложения:<br><span class="reaction">2KClO<sub>3</sub> → 2KCl + ?</span>',hint:'При разложении хлората выделяется газ.',a:['3O2','O2','o2','3o2'],e:'2KClO<sub>3</sub> → 2KCl + <b>3O<sub>2</sub></b>. Выделяется кислород.'},
+  {q:'Определи пропущенное вещество в реакции соединения:<br><span class="reaction">N<sub>2</sub> + 3H<sub>2</sub> → ?</span>',hint:'Синтез аммиака.',a:['2NH3','nh3'],e:'N<sub>2</sub> + 3H<sub>2</sub> → <b>2NH<sub>3</sub></b>. Синтез аммиака.'},
+  {q:'Определи пропущенное вещество в реакции разложения:<br><span class="reaction">2HgO → 2Hg + ?</span>',hint:'Ртуть и ещё один простой продукт.',a:['O2','o2'],e:'2HgO → 2Hg + <b>O<sub>2</sub></b>. Разложение оксида ртути.'},
+  {q:'Определи пропущенное вещество в реакции обмена:<br><span class="reaction">H<sub>2</sub>SO<sub>4</sub> + 2KOH → K<sub>2</sub>SO<sub>4</sub> + ?</span>',hint:'Нейтрализация всегда даёт этот продукт.',a:['2H2O','H2O','h2o'],e:'H<sub>2</sub>SO<sub>4</sub> + 2KOH → K<sub>2</sub>SO<sub>4</sub> + <b>2H<sub>2</sub>O</b>. Нейтрализация.'},
+  {q:'Определи пропущенное вещество в реакции соединения:<br><span class="reaction">? + H<sub>2</sub>O → H<sub>2</sub>SO<sub>4</sub></span>',hint:'Ангидрид серной кислоты.',a:['SO3','so3'],e:'<b>SO<sub>3</sub></b> + H<sub>2</sub>O → H<sub>2</sub>SO<sub>4</sub>. Соединение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2Fe(OH)<sub>3</sub> → Fe<sub>2</sub>O<sub>3</sub> + 3H<sub>2</sub>O</span>',hint:'Нагревание гидроксида металла.',a:['разложение'],e:'Fe(OH)<sub>3</sub> разлагается на оксид и воду — реакция <b>разложения</b>.'},
+  {q:'Допиши продукты реакции соединения:<br><span class="reaction">MgO + H<sub>2</sub>O →</span>',hint:'Оксид металла реагирует с водой.',a:['Mg(OH)2','mg(oh)2'],e:'MgO + H<sub>2</sub>O → <b>Mg(OH)<sub>2</sub></b>. Основный оксид + вода = основание.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2C + O<sub>2</sub> → 2CO</span>',hint:'Горение углерода при недостатке O₂.',a:['соединение'],e:'C и O<sub>2</sub> образуют CO — реакция <b>соединения</b>.'},
+  {q:'Допиши продукты реакции разложения:<br><span class="reaction">2AgCl →</span>',hint:'Разложение хлорида серебра под действием света.',a:['2Ag + Cl2','ag + cl2','2ag + cl2'],e:'2AgCl → <b>2Ag + Cl<sub>2</sub></b>. Фотохимическое разложение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Br<sub>2</sub> + 2KI → 2KBr + I<sub>2</sub></span>',hint:'Более активный галоген вытесняет менее активный.',a:['замещение'],e:'Br<sub>2</sub> вытесняет I<sub>2</sub> из KI — реакция <b>замещения</b>.'},
+  {q:'Допиши продукты реакции обмена:<br><span class="reaction">Na<sub>2</sub>CO<sub>3</sub> + 2HCl →</span>',hint:'Карбонат + кислота: соль, вода и газ.',a:['2NaCl + H2O + CO2','nacl + h2o + co2'],e:'Na<sub>2</sub>CO<sub>3</sub> + 2HCl → <b>2NaCl + H<sub>2</sub>O + CO<sub>2</sub></b>. Обмен.'},
+  {q:'Определи тип реакции:<br><span class="reaction">C + O<sub>2</sub> → CO<sub>2</sub></span>',hint:'Горение угля — два реагента, один продукт.',a:['соединение'],e:'C + O<sub>2</sub> → CO<sub>2</sub> — реакция <b>соединения</b>.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">Fe<sub>2</sub>O<sub>3</sub> + 3CO → 2Fe + ?</span>',hint:'CO окисляется при восстановлении железа.',a:['3CO2','CO2','co2'],e:'Fe<sub>2</sub>O<sub>3</sub> + 3CO → 2Fe + <b>3CO<sub>2</sub></b>. Восстановление (замещение).'},
+  {q:'Определи тип реакции:<br><span class="reaction">Na<sub>2</sub>O + H<sub>2</sub>O → 2NaOH</span>',hint:'Оксид металла + вода.',a:['соединение'],e:'Na<sub>2</sub>O и H<sub>2</sub>O образуют NaOH — реакция <b>соединения</b>.'},
+  {q:'Допиши продукты реакции разложения:<br><span class="reaction">Cu(OH)<sub>2</sub> →</span>',hint:'Нагрев гидроксида меди.',a:['CuO + H2O','cuo + h2o'],e:'Cu(OH)<sub>2</sub> → <b>CuO + H<sub>2</sub>O</b>. Разложение при нагревании.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Mg + 2HCl → MgCl<sub>2</sub> + H<sub>2</sub></span>',hint:'Металл вытесняет водород из кислоты.',a:['замещение'],e:'Mg вытесняет H<sub>2</sub> из HCl — реакция <b>замещения</b>.'},
+  {q:'Допиши продукты реакции обмена:<br><span class="reaction">AlCl<sub>3</sub> + 3NaOH →</span>',hint:'Хлорид алюминия + щёлочь.',a:['Al(OH)3 + 3NaCl','al(oh)3 + nacl'],e:'AlCl<sub>3</sub> + 3NaOH → <b>Al(OH)<sub>3</sub>↓ + 3NaCl</b>. Обмен.'},
+  {q:'Определи тип реакции:<br><span class="reaction">H<sub>2</sub>SO<sub>4</sub> + BaCl<sub>2</sub> → BaSO<sub>4</sub>↓ + 2HCl</span>',hint:'Два сложных вещества обмениваются ионами.',a:['обмен'],e:'H<sub>2</sub>SO<sub>4</sub> и BaCl<sub>2</sub> обмениваются — реакция <b>обмена</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">3Fe + 4H<sub>2</sub>O → Fe<sub>3</sub>O<sub>4</sub> + 4H<sub>2</sub></span>',hint:'Металл вытесняет водород из воды при нагревании.',a:['замещение'],e:'Fe вытесняет H<sub>2</sub> из H<sub>2</sub>O — реакция <b>замещения</b>.'},
+  {q:'Допиши продукты реакции соединения:<br><span class="reaction">Na<sub>2</sub>O + CO<sub>2</sub> →</span>',hint:'Основный оксид + кислотный оксид → соль.',a:['Na2CO3','na2co3'],e:'Na<sub>2</sub>O + CO<sub>2</sub> → <b>Na<sub>2</sub>CO<sub>3</sub></b>. Соединение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">NH<sub>4</sub>Cl → NH<sub>3</sub> + HCl</span>',hint:'Одно вещество → два.',a:['разложение'],e:'NH<sub>4</sub>Cl разлагается на NH<sub>3</sub> и HCl — реакция <b>разложения</b>.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">? + 2HCl → FeCl<sub>2</sub> + H<sub>2</sub></span>',hint:'Какой металл даёт хлорид железа (II)?',a:['Fe','fe'],e:'<b>Fe</b> + 2HCl → FeCl<sub>2</sub> + H<sub>2</sub>. Замещение.'},
+  {q:'Допиши продукты реакции обмена:<br><span class="reaction">FeCl<sub>3</sub> + 3NaOH →</span>',hint:'Хлорид железа (III) + щёлочь.',a:['Fe(OH)3 + 3NaCl','fe(oh)3 + nacl'],e:'FeCl<sub>3</sub> + 3NaOH → <b>Fe(OH)<sub>3</sub>↓ + 3NaCl</b>. Обмен.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2H<sub>2</sub>O<sub>2</sub> → 2H<sub>2</sub>O + O<sub>2</sub></span>',hint:'Пероксид → вода и газ.',a:['разложение'],e:'H<sub>2</sub>O<sub>2</sub> разлагается — реакция <b>разложения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">P<sub>2</sub>O<sub>5</sub> + 3H<sub>2</sub>O → 2H<sub>3</sub>PO<sub>4</sub></span>',hint:'Два вещества → одно.',a:['соединение'],e:'P<sub>2</sub>O<sub>5</sub> и H<sub>2</sub>O образуют H<sub>3</sub>PO<sub>4</sub> — реакция <b>соединения</b>.'},
+  {q:'Допиши продукты реакции замещения:<br><span class="reaction">2Al + 3CuSO<sub>4</sub> →</span>',hint:'Алюминий активнее меди.',a:['Al2(SO4)3 + 3Cu','al2(so4)3 + cu'],e:'2Al + 3CuSO<sub>4</sub> → <b>Al<sub>2</sub>(SO<sub>4</sub>)<sub>3</sub> + 3Cu</b>. Замещение.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">Na<sub>2</sub>CO<sub>3</sub> → Na<sub>2</sub>O + ?</span>',hint:'При разложении карбоната выделяется газ.',a:['CO2','co2'],e:'Na<sub>2</sub>CO<sub>3</sub> → Na<sub>2</sub>O + <b>CO<sub>2</sub></b>. Разложение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2Na + Cl<sub>2</sub> → 2NaCl</span>',hint:'Металл + неметалл → соль.',a:['соединение'],e:'Na и Cl<sub>2</sub> образуют NaCl — реакция <b>соединения</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Al<sub>2</sub>O<sub>3</sub> + 6HCl → 2AlCl<sub>3</sub> + 3H<sub>2</sub>O</span>',hint:'Оксид металла + кислота.',a:['обмен'],e:'Al<sub>2</sub>O<sub>3</sub> и HCl обмениваются — реакция <b>обмена</b>.'},
+  {q:'Допиши продукты реакции разложения:<br><span class="reaction">2NaOH →</span>',hint:'Разложение гидроксида натрия при нагревании.',a:['Na2O + H2O','na2o + h2o'],e:'2NaOH → <b>Na<sub>2</sub>O + H<sub>2</sub>O</b>. Разложение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Fe + S → FeS</span>',hint:'Два простых вещества → одно сложное.',a:['соединение'],e:'Fe и S образуют FeS — реакция <b>соединения</b>.'},
+  {q:'Допиши продукты реакции замещения:<br><span class="reaction">Mg + 2HBr →</span>',hint:'Активный металл + бромоводородная кислота.',a:['MgBr2 + H2','mgbr2 + h2'],e:'Mg + 2HBr → <b>MgBr<sub>2</sub> + H<sub>2</sub></b>. Замещение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">CaO + CO<sub>2</sub> → CaCO<sub>3</sub></span>',hint:'Два оксида → одна соль.',a:['соединение'],e:'CaO и CO<sub>2</sub> образуют CaCO<sub>3</sub> — реакция <b>соединения</b>.'},
+  {q:'Допиши продукты реакции обмена:<br><span class="reaction">ZnSO<sub>4</sub> + 2KOH →</span>',hint:'Сульфат цинка + щёлочь.',a:['Zn(OH)2 + K2SO4','zn(oh)2 + k2so4'],e:'ZnSO<sub>4</sub> + 2KOH → <b>Zn(OH)<sub>2</sub>↓ + K<sub>2</sub>SO<sub>4</sub></b>. Обмен.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2KNO<sub>3</sub> → 2KNO<sub>2</sub> + O<sub>2</sub></span>',hint:'Нагревание нитрата калия.',a:['разложение'],e:'KNO<sub>3</sub> разлагается на KNO<sub>2</sub> и O<sub>2</sub> — реакция <b>разложения</b>.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">C + 2H<sub>2</sub> → ?</span>',hint:'Синтез простейшего углеводорода.',a:['CH4','ch4'],e:'C + 2H<sub>2</sub> → <b>CH<sub>4</sub></b>. Синтез метана — соединение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2FeCl<sub>3</sub> + Fe → 3FeCl<sub>2</sub></span>',hint:'Простое вещество взаимодействует со сложным.',a:['замещение'],e:'Fe восстанавливает FeCl<sub>3</sub> — реакция <b>замещения</b>.'},
+  {q:'Допиши продукты реакции соединения:<br><span class="reaction">K<sub>2</sub>O + H<sub>2</sub>O →</span>',hint:'Оксид активного металла + вода.',a:['2KOH','koh'],e:'K<sub>2</sub>O + H<sub>2</sub>O → <b>2KOH</b>. Соединение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2NaI + Cl<sub>2</sub> → 2NaCl + I<sub>2</sub></span>',hint:'Хлор активнее йода.',a:['замещение'],e:'Cl<sub>2</sub> вытесняет I<sub>2</sub> из NaI — реакция <b>замещения</b>.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">CaCO<sub>3</sub> + 2HCl → CaCl<sub>2</sub> + H<sub>2</sub>O + ?</span>',hint:'Карбонат + кислота выделяют газ.',a:['CO2','co2'],e:'CaCO<sub>3</sub> + 2HCl → CaCl<sub>2</sub> + H<sub>2</sub>O + <b>CO<sub>2</sub></b>. Обмен.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Al + Fe<sub>2</sub>O<sub>3</sub> → Al<sub>2</sub>O<sub>3</sub> + Fe</span>',hint:'Алюминотермия — активный металл вытесняет менее активный.',a:['замещение'],e:'Al вытесняет Fe из Fe<sub>2</sub>O<sub>3</sub> — реакция <b>замещения</b>. Алюминотермия.'},
+  {q:'Допиши продукты реакции разложения:<br><span class="reaction">2Al(OH)<sub>3</sub> →</span>',hint:'Нагревание гидроксида алюминия.',a:['Al2O3 + 3H2O','al2o3 + h2o'],e:'2Al(OH)<sub>3</sub> → <b>Al<sub>2</sub>O<sub>3</sub> + 3H<sub>2</sub>O</b>. Разложение.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">Cu + ? → CuO</span>',hint:'Медь окисляется при нагревании.',a:['O2','o2'],e:'2Cu + <b>O<sub>2</sub></b> → 2CuO. Горение меди — соединение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Ca + 2H<sub>2</sub>O → Ca(OH)<sub>2</sub> + H<sub>2</sub></span>',hint:'Щелочноземельный металл + вода.',a:['замещение'],e:'Ca вытесняет H<sub>2</sub> из H<sub>2</sub>O — реакция <b>замещения</b>.'},
+  {q:'Допиши продукты реакции обмена:<br><span class="reaction">MgCl<sub>2</sub> + 2KOH →</span>',hint:'Хлорид магния + гидроксид калия.',a:['Mg(OH)2 + 2KCl','mg(oh)2 + kcl'],e:'MgCl<sub>2</sub> + 2KOH → <b>Mg(OH)<sub>2</sub>↓ + 2KCl</b>. Обмен.'},
+  {q:'Определи тип реакции:<br><span class="reaction">SO<sub>2</sub> + H<sub>2</sub>O → H<sub>2</sub>SO<sub>3</sub></span>',hint:'Кислотный оксид + вода.',a:['соединение'],e:'SO<sub>2</sub> и H<sub>2</sub>O образуют H<sub>2</sub>SO<sub>3</sub> — реакция <b>соединения</b>.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">? + H<sub>2</sub>O → H<sub>3</sub>PO<sub>4</sub></span>',hint:'Ангидрид фосфорной кислоты.',a:['P2O5','p2o5'],e:'<b>P<sub>2</sub>O<sub>5</sub></b> + 3H<sub>2</sub>O → 2H<sub>3</sub>PO<sub>4</sub>. Соединение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Ba(OH)<sub>2</sub> + H<sub>2</sub>SO<sub>4</sub> → BaSO<sub>4</sub>↓ + 2H<sub>2</sub>O</span>',hint:'Щёлочь + кислота — нейтрализация.',a:['обмен'],e:'Ba(OH)<sub>2</sub> и H<sub>2</sub>SO<sub>4</sub> обмениваются — реакция <b>обмена</b>.'},
+  {q:'Допиши продукты реакции соединения:<br><span class="reaction">2H<sub>2</sub> + O<sub>2</sub> →</span>',hint:'Горение водорода — классика.',a:['2H2O','h2o'],e:'2H<sub>2</sub> + O<sub>2</sub> → <b>2H<sub>2</sub>O</b>. Соединение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2Mg + O<sub>2</sub> → 2MgO</span>',hint:'Горение магния.',a:['соединение'],e:'Mg и O<sub>2</sub> образуют MgO — реакция <b>соединения</b>.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">? → 2Na + Cl<sub>2</sub></span>',hint:'Электролиз расплава этого вещества.',a:['2NaCl','NaCl','nacl'],e:'Электролиз <b>2NaCl</b> → 2Na + Cl<sub>2</sub>. Разложение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Na<sub>2</sub>O + SO<sub>3</sub> → Na<sub>2</sub>SO<sub>4</sub></span>',hint:'Два оксида → одна соль.',a:['соединение'],e:'Na<sub>2</sub>O и SO<sub>3</sub> образуют Na<sub>2</sub>SO<sub>4</sub> — реакция <b>соединения</b>.'},
+  {q:'Допиши продукты реакции замещения:<br><span class="reaction">2Li + 2H<sub>2</sub>O →</span>',hint:'Литий — очень активный металл.',a:['2LiOH + H2','lioh + h2'],e:'2Li + 2H<sub>2</sub>O → <b>2LiOH + H<sub>2</sub></b>. Замещение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2KI + Br<sub>2</sub> → 2KBr + I<sub>2</sub></span>',hint:'Бром активнее йода.',a:['замещение'],e:'Br<sub>2</sub> вытесняет I<sub>2</sub> из KI — реакция <b>замещения</b>.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">ZnO + 2HCl → ZnCl<sub>2</sub> + ?</span>',hint:'Оксид + кислота — всегда есть вода.',a:['H2O','h2o'],e:'ZnO + 2HCl → ZnCl<sub>2</sub> + <b>H<sub>2</sub>O</b>. Обмен.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2NO + O<sub>2</sub> → 2NO<sub>2</sub></span>',hint:'NO окисляется кислородом.',a:['соединение'],e:'NO и O<sub>2</sub> образуют NO<sub>2</sub> — реакция <b>соединения</b>.'},
+  {q:'Допиши продукты реакции обмена:<br><span class="reaction">Pb(NO<sub>3</sub>)<sub>2</sub> + 2KI →</span>',hint:'Нитрат свинца + йодид калия.',a:['PbI2 + 2KNO3','pbi2 + kno3'],e:'Pb(NO<sub>3</sub>)<sub>2</sub> + 2KI → <b>PbI<sub>2</sub>↓ + 2KNO<sub>3</sub></b>. Обмен.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">4Al + 3O<sub>2</sub> → ?</span>',hint:'Продукт горения алюминия.',a:['2Al2O3','Al2O3','al2o3'],e:'4Al + 3O<sub>2</sub> → <b>2Al<sub>2</sub>O<sub>3</sub></b>. Соединение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Mg + CuCl<sub>2</sub> → MgCl<sub>2</sub> + Cu</span>',hint:'Более активный металл вытесняет менее активный.',a:['замещение'],e:'Mg вытесняет Cu из CuCl<sub>2</sub> — реакция <b>замещения</b>.'},
+  {q:'Допиши продукты реакции разложения:<br><span class="reaction">Mg(OH)<sub>2</sub> →</span>',hint:'Нагревание гидроксида магния.',a:['MgO + H2O','mgo + h2o'],e:'Mg(OH)<sub>2</sub> → <b>MgO + H<sub>2</sub>O</b>. Разложение.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">2SO<sub>2</sub> + O<sub>2</sub> → ?</span>',hint:'Продукт каталитического окисления SO₂.',a:['2SO3','SO3','so3'],e:'2SO<sub>2</sub> + O<sub>2</sub> → <b>2SO<sub>3</sub></b>. Соединение (контактный процесс).'},
+  {q:'Определи тип реакции:<br><span class="reaction">ZnO + H<sub>2</sub>SO<sub>4</sub> → ZnSO<sub>4</sub> + H<sub>2</sub>O</span>',hint:'Оксид + кислота.',a:['обмен'],e:'ZnO и H<sub>2</sub>SO<sub>4</sub> обмениваются — реакция <b>обмена</b>.'},
+  {q:'Допиши продукты реакции соединения:<br><span class="reaction">BaO + H<sub>2</sub>O →</span>',hint:'Оксид бария + вода.',a:['Ba(OH)2','ba(oh)2'],e:'BaO + H<sub>2</sub>O → <b>Ba(OH)<sub>2</sub></b>. Соединение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">2Mg + CO<sub>2</sub> → 2MgO + C</span>',hint:'Активный металл вытесняет неметалл из оксида.',a:['замещение'],e:'Mg вытесняет C из CO<sub>2</sub> — реакция <b>замещения</b>.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">NaOH + HCl → ? + H<sub>2</sub>O</span>',hint:'Натрий + хлор → ?',a:['NaCl','nacl'],e:'NaOH + HCl → <b>NaCl</b> + H<sub>2</sub>O. Нейтрализация.'},
+  {q:'Допиши продукты реакции обмена:<br><span class="reaction">Fe<sub>2</sub>(SO<sub>4</sub>)<sub>3</sub> + 6NaOH →</span>',hint:'Сульфат железа (III) + щёлочь.',a:['2Fe(OH)3 + 3Na2SO4','fe(oh)3 + na2so4'],e:'Fe<sub>2</sub>(SO<sub>4</sub>)<sub>3</sub> + 6NaOH → <b>2Fe(OH)<sub>3</sub>↓ + 3Na<sub>2</sub>SO<sub>4</sub></b>. Обмен.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">? + 2NaOH → Na<sub>2</sub>SO<sub>4</sub> + 2H<sub>2</sub>O</span>',hint:'Какая кислота даёт сульфат натрия?',a:['H2SO4','h2so4'],e:'<b>H<sub>2</sub>SO<sub>4</sub></b> + 2NaOH → Na<sub>2</sub>SO<sub>4</sub> + 2H<sub>2</sub>O. Нейтрализация.'},
+  {q:'Определи тип реакции:<br><span class="reaction">BaCO<sub>3</sub> → BaO + CO<sub>2</sub></span>',hint:'Нагревание карбоната бария.',a:['разложение'],e:'BaCO<sub>3</sub> разлагается на BaO и CO<sub>2</sub> — реакция <b>разложения</b>.'},
+  {q:'Допиши продукты реакции замещения:<br><span class="reaction">Ca + 2H<sub>2</sub>O →</span>',hint:'Кальций активно реагирует с водой.',a:['Ca(OH)2 + H2','ca(oh)2 + h2'],e:'Ca + 2H<sub>2</sub>O → <b>Ca(OH)<sub>2</sub> + H<sub>2</sub></b>. Замещение.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">Fe<sub>2</sub>O<sub>3</sub> + 6HCl → 2FeCl<sub>3</sub> + ?</span>',hint:'Оксид + кислота всегда дают воду.',a:['3H2O','H2O','h2o'],e:'Fe<sub>2</sub>O<sub>3</sub> + 6HCl → 2FeCl<sub>3</sub> + <b>3H<sub>2</sub>O</b>. Обмен.'},
+  {q:'Определи тип реакции:<br><span class="reaction">Zn + CuCl<sub>2</sub> → ZnCl<sub>2</sub> + Cu</span>',hint:'Более активный металл вытесняет менее активный.',a:['замещение'],e:'Zn вытесняет Cu из CuCl<sub>2</sub> — реакция <b>замещения</b>.'},
+  {q:'Допиши продукты реакции соединения:<br><span class="reaction">Li<sub>2</sub>O + H<sub>2</sub>O →</span>',hint:'Оксид лития + вода.',a:['2LiOH','lioh'],e:'Li<sub>2</sub>O + H<sub>2</sub>O → <b>2LiOH</b>. Соединение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">FeCl<sub>2</sub> + 2NaOH → Fe(OH)<sub>2</sub>↓ + 2NaCl</span>',hint:'Два сложных вещества обмениваются ионами.',a:['обмен'],e:'FeCl<sub>2</sub> и NaOH обмениваются — реакция <b>обмена</b>.'},
+  {q:'Определи тип реакции:<br><span class="reaction">S + O<sub>2</sub> → SO<sub>2</sub></span>',hint:'Горение серы.',a:['соединение'],e:'S и O<sub>2</sub> образуют SO<sub>2</sub> — реакция <b>соединения</b>.'},
+  {q:'Определи пропущенное вещество:<br><span class="reaction">K + H<sub>2</sub>O → KOH + ?</span>',hint:'Щелочной металл + вода.',a:['H2','h2'],e:'2K + 2H<sub>2</sub>O → 2KOH + <b>H<sub>2</sub></b>. Замещение.'},
+  {q:'Определи тип реакции:<br><span class="reaction">MnO<sub>2</sub> + 4HCl → MnCl<sub>2</sub> + Cl<sub>2</sub> + 2H<sub>2</sub>O</span>',hint:'Оксид марганца + соляная кислота.',a:['обмен'],e:'MnO<sub>2</sub> и HCl обмениваются — реакция <b>обмена</b>.'},
+  {q:'Допиши продукты реакции соединения:<br><span class="reaction">NO + O<sub>2</sub> →</span>',hint:'Оксид азота (II) окисляется.',a:['NO2','2NO2'],e:'2NO + O<sub>2</sub> → <b>2NO<sub>2</sub></b>. Соединение.'},
+];
+
+let cur=0,correct=0,attempts=3,answered=false;
+const TOTAL=Q.length;
+
+function norm(s){return s.trim().toLowerCase().replace(/\s+/g,' ');}
+
+function load(){
+  answered=false;attempts=3;
+  const q=Q[cur];
+  document.getElementById('card-tag').textContent='ЗАДАНИЕ '+String(cur+1).padStart(3,'0');
+  document.getElementById('question-text').innerHTML=q.q;
+  document.getElementById('hint-text').innerHTML='// '+q.hint;
+  document.getElementById('answer-input').value='';
+  document.getElementById('answer-input').disabled=false;
+  document.getElementById('btn-check').disabled=false;
+  document.getElementById('feedback').style.display='none';
+  document.getElementById('feedback').className='feedback';
+  document.getElementById('btn-next').style.display='none';
+  const card=document.getElementById('question-card');
+  card.className='card'; void card.offsetWidth;
+  pips();stats();
+  document.getElementById('answer-input').focus();
+}
+
+function pips(){
+  for(let i=1;i<=3;i++)document.getElementById('pip'+i).className='attempt-pip'+(i>attempts?' used':'');
+}
+
+function stats(){
+  document.getElementById('s-num').textContent=(cur+1)+'/'+TOTAL;
+  document.getElementById('s-correct').textContent=correct;
+  document.getElementById('s-attempts').textContent=attempts;
+  const p=Math.round((cur/TOTAL)*100);
+  document.getElementById('progress-fill').style.width=p+'%';
+  document.getElementById('pct-label').textContent=p+'%';
+}
+
+function checkAnswer(){
+  if(answered)return;
+  const inp=document.getElementById('answer-input').value;
+  const q=Q[cur];
+  const ok=q.a.some(x=>norm(x)===norm(inp));
+  const fb=document.getElementById('feedback');
+  const card=document.getElementById('question-card');
+  if(ok){
+    correct++;answered=true;
+    card.className='card correct';
+    setTimeout(()=>{card.classList.add('pulsing');setTimeout(()=>card.classList.remove('pulsing'),800);},50);
+    fb.className='feedback correct-fb';fb.style.display='block';
+    fb.innerHTML='<span class="fb-icon">✓</span> Верно!<div class="explanation">'+q.e+'</div>';
+    document.getElementById('btn-next').style.display='block';
+    document.getElementById('btn-check').disabled=true;
+    document.getElementById('answer-input').disabled=true;
+  } else {
+    attempts--;pips();
+    document.getElementById('s-attempts').textContent=attempts;
+    card.className='card wrong';void card.offsetWidth;card.classList.add('shaking');
+    setTimeout(()=>{card.className='card wrong';},600);
+    if(attempts<=0){
+      answered=true;
+      fb.className='feedback wrong-fb';fb.style.display='block';
+      fb.innerHTML='<span class="fb-icon">✗</span> Попытки исчерпаны. Правильный ответ: <b>'+q.a[0]+'</b><div class="explanation">'+q.e+'</div>';
+      document.getElementById('btn-next').style.display='block';
+      document.getElementById('btn-check').disabled=true;
+      document.getElementById('answer-input').disabled=true;
+    } else {
+      fb.className='feedback wrong-fb';fb.style.display='block';
+      fb.innerHTML='<span class="fb-icon">✗</span> Неверно. Осталось попыток: '+attempts;
+    }
+  }
+}
+
+function nextQuestion(){
+  cur++;
+  if(cur>=TOTAL){showResult();return;}
+  load();
+}
+
+function showResult(){
+  document.getElementById('question-card').style.display='none';
+  const rs=document.getElementById('result-screen');
+  rs.style.display='block';
+  const p=Math.round((correct/TOTAL)*100);
+  document.getElementById('res-score').textContent=p+'%';
+  let praise='';
+  if(p>=90)praise='🏆 Феноменальный результат! Ты настоящий химический киберпанк. Все реакции покорены!';
+  else if(p>=75)praise='⚡ Отлично! Твои нейросети заточены под химию. Ещё немного — и ты непобедим!';
+  else if(p>=60)praise='🔬 Хороший результат! Основы усвоены. Прокачай теорию — и ты будешь сильнее.';
+  else if(p>=40)praise='⚙️ Неплохой старт! Изучи справочник ещё раз — реакции поддаются тренировке.';
+  else praise='💡 Не сдавайся! Химия — это код природы. Повтори правила и попробуй снова.';
+  document.getElementById('res-praise').textContent=praise;
+  document.getElementById('progress-fill').style.width='100%';
+  document.getElementById('pct-label').textContent='100%';
+}
+
+function restartQuiz(){
+  cur=0;correct=0;
+  document.getElementById('result-screen').style.display='none';
+  document.getElementById('question-card').style.display='block';
+  load();
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){if(!answered)checkAnswer();else if(document.getElementById('btn-next').style.display!=='none')nextQuestion();}
+});
+
+load();
+</script>
+</body>
+</html>
